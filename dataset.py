@@ -4,7 +4,7 @@ import csv
 import numpy as np
 import pandas as pd
 import torch
-from time_preprocess import*
+from time_preprocess import *
 from torch.utils import data
 from sklearn.model_selection import train_test_split
 from config import settings
@@ -39,6 +39,7 @@ def load_data(filename='train', random_sample=None):
     rn_sample_df[['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']] = get_weekday(rn_sample_df.pickup_datetime, mode='onehot')
     rn_sample_df['hour'] = get_time(rn_sample_df.pickup_datetime, mode='normalized')
     rn_sample_df['is_holiday'] = get_is_holiday(rn_sample_df.pickup_datetime)
+    rn_sample_df[['temperature','weathercode']] = get_weather(rn_sample_df.pickup_datetime, mode='normalized')
     rn_sample_df['distance'] = distance(rn_sample_df.pickup_latitude, rn_sample_df.pickup_longitude, 
                                     rn_sample_df.dropoff_latitude, rn_sample_df.dropoff_longitude)
     
