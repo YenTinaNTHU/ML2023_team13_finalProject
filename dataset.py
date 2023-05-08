@@ -19,9 +19,9 @@ def distance(lat1, lon1, lat2, lon2):
     a = 0.5 - np.cos((lat2 - lat1) * p)/2 + np.cos(lat1 * p) * np.cos(lat2 * p) * (1 - np.cos((lon2 - lon1) * p)) / 2
     return 0.6213712 * 12742 * np.arcsin(np.sqrt(a)) # 2*R*asin...
 
-def load_data(filename='train', random_sample=None):
+def load_data(filename='train', total_sample=None, random_sample=None):
     if filename=='train':
-        df = pd.read_csv(os.path.join(DATA_PATH, 'train.csv'), nrows=100)
+        df = pd.read_csv(os.path.join(DATA_PATH, 'train.csv'), nrows=total_sample)
         print(f'loaded csv file shape: {df.shape}')
         if random_sample:
             rn_sample_df = df.sample(random_sample, random_state=settings.RANDOM_SEED)
