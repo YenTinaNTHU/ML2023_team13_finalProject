@@ -105,7 +105,7 @@ def get_weather(date_time:pd.Series, mode='normal'):
         weather_data_df['hour'] =  weather_data_df['time'].dt.floor('H')
 
         # 合併兩個DataFrame
-        weather_df = pd.merge(weather_df, weather_data_df, on='hour', how='inner').drop('hour', axis=1)
+        weather_df = pd.merge(weather_df, weather_data_df, on='hour', how='left').drop('hour', axis=1)
         weather_df = weather_df.drop(columns=['timestamp', 'time'])
 
         if mode == 'normalized':
