@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from time_preprocess import *
 from config import settings
-
+# pip install geopy
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut
 
@@ -40,19 +40,43 @@ def add_location_info(df:pd.DataFrame()):
 geolocator = Nominatim(user_agent="geoapiExercises")
 
 def check_location_in_areas(lat, long):
-    try:
-        location = geolocator.reverse([lat, long], exactly_one=True)
-        address = location.raw['address']
-        county = address.get('county', '')
-        city = address.get('city', '')
-        areas = ['New York County', 'Nassau', 'Suffolk', 'Westchester', 'Rockland', 'Dutchess', 'Orange', 'Putnam']
-        if city == 'City of New York' or county in areas:
-            return True
-        else:
-            return False
-    except GeocoderTimedOut:
-        return check_location_in_areas(lat, long)
-    
+    # try:
+    #     location = geolocator.reverse([lat, long], exactly_one=True)
+    #     address = location.raw['address']
+    #     county = address.get('county', '')
+    #     city = address.get('city', '')
+    #     areas = ['New York County', 'Nassau', 'Suffolk', 'Westchester', 'Rockland', 'Dutchess', 'Orange', 'Putnam']
+    #     if city == 'City of New York' or county in areas:
+    #         return True
+    #     else:
+    #         return False
+    # except GeocoderTimedOut:
+    #     return check_location_in_areas(lat, long)
+    counties = {
+        'New York County': {'coords': (40.7831, -73.9712), 'area': 59.13},
+        'Nassau': {'coords': (40.6546, -73.5594), 'area': 1173},
+        'Suffolk': {'coords': (40.9849, -72.6151), 'area': 6146},
+        'Westchester': {'coords': (41.1220, -73.7949), 'area': 1295},
+        'Rockland': {'coords': (41.1489, -73.9830), 'area': 516},
+        'Dutchess': {'coords': (41.7784, -73.7478), 'area': 2135},
+        'Orange': {'coords': (41.3912, -74.3118), 'area': 2173},
+        'Putnam': {'coords': (41.4351, -73.7949), 'area': 637},
+    }
+    def is_nearby(lat, lon):
+        for county, details in counties.items():
+            clat, clon = details['coords']
+            # Convert area in km^2 to miles^2, then take square root
+            limit = np.sqrt(details['area'] * 0.386102)  # 1 km^2 = 0.386102 miles^2
+            if distance(lat, lon, clat, clon) <= limit:
+                return True
+        return False
+    nearby = is_nearby(lat, long)
+    if nearby:
+        return True
+    else:
+        return False
+        
+        
 def calculate_total_fixed_fee(df, accelerate = True, train = False):
     # Assume df has 'pickup_datetime' as a pandas datetime column
     df['pickup_hour'] = df['pickup_datetime'].dt.hour
