@@ -4,15 +4,20 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+from torch.utils.tensorboard import SummaryWriter
 
 from tqdm import tqdm
 
-device = torch.device("cuda:4" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+save_index = 1
 
-def train(dataloader, model, loss_fn, optimizer):
+def train(dataloader, model, loss_fn, optimizer, writer, record_batches=500):
+    global save_index
     num_batches = len(dataloader)
     epoch_loss = 0
-
+    record_loss = 0
+    batch_count = 0
+    
     model.train()
 
     for X, y in tqdm(dataloader):
@@ -30,6 +35,13 @@ def train(dataloader, model, loss_fn, optimizer):
         optimizer.step()
 
         epoch_loss += math.sqrt(loss.item())
+        record_loss += math.sqrt(loss.item())
+        batch_count += 1
+        if batch_count == record_batches:
+            writer.add_scalar("loss/batches", record_loss / record_batches, save_index)
+            save_index += 1
+            record_loss = 0
+            batch_count = 0
 
     avg_epoch_loss = epoch_loss / num_batches
 

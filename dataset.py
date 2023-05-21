@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import torch
 from time_preprocess import *
+from location_preprocess import *
 from torch.utils import data
 from sklearn.model_selection import train_test_split
 from config import settings
@@ -35,7 +36,8 @@ def load_data(filename='train', total_sample=None, random_sample=None):
 
     # 2009-06-15 17:26:21 UTC
     # add time information
-    rn_sample_df['year'] = get_year(rn_sample_df.pickup_datetime, mode='normalized')
+    print('setting time info...')
+    rn_sample_df['year'] = get_year(rn_sample_df.pickup_datetime)
     rn_sample_df[['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']] = get_weekday(rn_sample_df.pickup_datetime, mode='onehot')
     rn_sample_df['hour'] = get_time(rn_sample_df.pickup_datetime, mode='normalized')
     rn_sample_df['is_holiday'] = get_is_holiday(rn_sample_df.pickup_datetime)
@@ -44,6 +46,7 @@ def load_data(filename='train', total_sample=None, random_sample=None):
                                     rn_sample_df.dropoff_latitude, rn_sample_df.dropoff_longitude)
     
     # add geographical information
+    print('setting geo info...')
     THRESHOLD = 4
     JFK_COORD = (40.641766, -73.780968)
     LGA_COORD = (40.776927, -73.873966)
@@ -63,13 +66,22 @@ def load_data(filename='train', total_sample=None, random_sample=None):
     rn_sample_df['from_Manhattan']  = distance(rn_sample_df.pickup_latitude, rn_sample_df.pickup_longitude, \
                                         *MANHATTAN) <= THRESHOLD
     rn_sample_df['to_Manhattan']    = distance(rn_sample_df.dropoff_latitude, rn_sample_df.dropoff_longitude, \
-                                        *MANHATTAN) <= THRESHOLD     
+                                        *MANHATTAN) <= THRESHOLD
+    
+    if filename == 'train':
+        print('counting net fare...')
+        rn_sample_df = calculate_net_fare(rn_sample_df)
+    else:
+        # we cannot count the net fare for test set
+        print('counting fixed fee...')
+        rn_sample_df = calculate_total_fixed_fee(rn_sample_df)
+
     # remove illegal data    
     if filename == 'train':
         rn_sample_df = rn_sample_df.dropna()
-        rn_sample_df = rn_sample_df[rn_sample_df.fare_amount > 0]
+        rn_sample_df = rn_sample_df[rn_sample_df.net_fare > 0]
         rn_sample_df = rn_sample_df[rn_sample_df.distance > 0]
-        rn_sample_df = rn_sample_df[rn_sample_df.passenger_count < 9]
+        rn_sample_df = rn_sample_df[(0 <rn_sample_df.passenger_count) & (rn_sample_df.passenger_count < 7)]
         rn_sample_df = rn_sample_df.drop(['key'], axis=1)
     '''without location'''
     rn_sample_df = rn_sample_df.drop(['pickup_datetime', 'pickup_longitude', 'pickup_latitude', 'dropoff_longitude', 'dropoff_latitude'], axis=1)  
@@ -87,6 +99,7 @@ class DataFolder(data.Dataset):
             train_df, valid_df = train_test_split(df, test_size=settings.valid_rate, random_state=settings.RANDOM_SEED)
             self.df = valid_df if split == 'valid' else train_df
             self.features = self.df.drop('fare_amount', axis=1).values
+            self.features = self.df.drop('net_fare', axis=1).values
         else:
             self.df = load_data(filename='test', random_sample=settings.testN)
             self.key_list = self.df.key.values
@@ -97,12 +110,14 @@ class DataFolder(data.Dataset):
         if self.split == 'test':
             return self.features[index].astype(np.float32)
         else:
-            return self.features[index].astype(np.float32), self.df['fare_amount'].values[index].astype(np.float32)
+            # return self.features[index].astype(np.float32), self.df['fare_amount'].values[index].astype(np.float32)
+            return self.features[index].astype(np.float32), self.df['net_fare'].values[index].astype(np.float32)
 
 
     def __len__(self):
         if self.split == 'test':
             return np.size(self.df.values, 0)
         else:
-            return len(self.df.fare_amount)
+            # return len(self.df.fare_amount)
+            return len(self.df.net_fare)
 
