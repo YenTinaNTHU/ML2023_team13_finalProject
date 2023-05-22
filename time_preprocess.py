@@ -1,63 +1,38 @@
-import os
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from config import settings
 import requests
 
-def get_year(date_time:pd.Series, mode='normal'):
+
+def get_year(date_time:pd.Series, transformer=None, train = True):
     year = date_time.apply(lambda t: t.year)
-    if mode == 'normalized':
-        year = year.values.reshape(-1, 1)
-        minmax_scaler = MinMaxScaler()
-        year_normalized = minmax_scaler.fit_transform(year)
-        return year_normalized
-    elif mode == 'standardized':
-        year = year.values.reshape(-1, 1)
-        std_scaler = StandardScaler()
-        year_standardized = std_scaler.fit_transform(year)
-        return year_standardized
-    else:
-        return year
-    
+    if transformer is not None:
+        if train:
+            transformer.fit(year.values.reshape(-1, 1))
+        year = transformer.transform(year.values.reshape(-1, 1))
+    return year, transformer
 
-def get_weekday(date_time:pd.Series, mode='normal'):
+def get_weekday(date_time:pd.Series, transformer=None, mode=None, train = True):
     weekday = date_time.apply(lambda t: t.weekday())
-    if mode == 'normalized':
-        weekday = weekday.values.reshape(-1, 1)
-        minmax_scaler = MinMaxScaler()
-        weekday_normalized = minmax_scaler.fit_transform(weekday)
-        return weekday_normalized
-    elif mode == 'standardized':
-        weekday = weekday.values.reshape(-1, 1)
-        std_scaler = StandardScaler()
-        weekday_standardized = std_scaler.fit_transform(weekday)
-        return weekday_standardized
-    elif mode == 'onehot':
+    if mode == 'onehot':
         weekday_onehot = pd.get_dummies(weekday.replace({0: 7}))
-        return weekday_onehot.values
-    else:
-        return weekday
+        return weekday_onehot.values, transformer
+    if transformer is not None:
+        if train:
+            transformer.fit(weekday.values.reshape(-1, 1))
+        weekday = transformer.transform(weekday.values.reshape(-1, 1))
+    return weekday, transformer
 
-def get_time(date_time:pd.Series, mode='normal', precision='hour'):
+def get_time(date_time:pd.Series, transformer=None, precision='hour', train = True):
     time = date_time.apply(lambda t: t.hour)
     if precision == 'minute':
         hour = date_time.apply(lambda t: t.hour)
         minute = date_time.apply(lambda t: t.minute)
         time = hour*60+minute
-        
-    if mode == 'normalized':
-        time = time.values.reshape(-1, 1)
-        minmax_scaler = MinMaxScaler()
-        time_normalized = minmax_scaler.fit_transform(time)
-        return time_normalized
-    elif mode == 'standardized':
-        time = time.values.reshape(-1, 1)
-        std_scaler = StandardScaler()
-        time_standardized = std_scaler.fit_transform(time)
-        return time_standardized
-    else:
-        return time
+    if transformer is not None:
+        if train:
+            transformer.fit(time.values.reshape(-1, 1))
+        time = transformer.transform(time.values.reshape(-1, 1))
+    return time, transformer
 
 def get_is_holiday(date_time:pd.Series):
     def is_holiday(date):
@@ -82,7 +57,7 @@ def get_is_holiday(date_time:pd.Series):
         return 0
     return date_time.apply(is_holiday)
 
-def get_weather(date_time:pd.Series, mode='normal'):
+def get_weather(date_time:pd.Series, mode='normal', transformer=None, train=True):
     # The longitude and latitude of New York City.
     lon = '-74.00'
     lat = '40.71'
@@ -108,14 +83,10 @@ def get_weather(date_time:pd.Series, mode='normal'):
         weather_df = pd.merge(weather_df, weather_data_df, on='hour', how='left').drop('hour', axis=1)
         weather_df = weather_df.drop(columns=['timestamp', 'time'])
 
-        if mode == 'normalized':
-            scaler = MinMaxScaler()
-            weather_df = pd.DataFrame(scaler.fit_transform(weather_df), columns=weather_df.columns)
-        elif mode == 'standardized':
-            scaler = StandardScaler()
-            weather_df = pd.DataFrame(scaler.fit_transform(weather_df), columns=weather_df.columns)
-        else:
-            ...
-        return weather_df.values
+        if transformer is not None:
+            if train:
+                transformer.fit(weather_df.values.reshape(-1, 1))
+            weather_df = pd.DataFrame(transformer.transform(weather_df.values.reshape(-1, 1)))                           
+        return weather_df.values, transformer
     else:
         print("Failed to get weather information.")

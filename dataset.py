@@ -1,9 +1,7 @@
 # coding: utf-8
 import os
-import csv
 import numpy as np
 import pandas as pd
-import torch
 from time_preprocess import *
 from location_preprocess import *
 from torch.utils import data
@@ -20,7 +18,7 @@ def distance(lat1, lon1, lat2, lon2):
     a = 0.5 - np.cos((lat2 - lat1) * p)/2 + np.cos(lat1 * p) * np.cos(lat2 * p) * (1 - np.cos((lon2 - lon1) * p)) / 2
     return 0.6213712 * 12742 * np.arcsin(np.sqrt(a)) # 2*R*asin...
 
-def load_data(filename='train', total_sample=None, random_sample=None):
+def load_data(filename='train', total_sample=None, random_sample=None, scaling_transformers=None):
     if filename=='train':
         df = pd.read_csv(os.path.join(DATA_PATH, 'train.csv'), nrows=total_sample)
         print(f'loaded csv file shape: {df.shape}')
@@ -34,16 +32,33 @@ def load_data(filename='train', total_sample=None, random_sample=None):
         rn_sample_df = df
     rn_sample_df['pickup_datetime'] = pd.to_datetime(rn_sample_df['pickup_datetime'], format= "%Y-%m-%d %H:%M:%S UTC")
 
+
+    year_scaler = None
+    weekday_scaler = None
+    time_scaler = None
+    weather_scaler = None
+    if scaling_transformers:
+        year_scaler = scaling_transformers['year']
+        weekday_scaler = scaling_transformers['weekday']
+        time_scaler = scaling_transformers['time']
+        weather_scaler = scaling_transformers['weather']
+
     # 2009-06-15 17:26:21 UTC
     # add time information
     print('setting time info...')
-    rn_sample_df['year'] = get_year(rn_sample_df.pickup_datetime)
-    rn_sample_df[['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']] = get_weekday(rn_sample_df.pickup_datetime, mode='onehot')
-    rn_sample_df['hour'] = get_time(rn_sample_df.pickup_datetime, mode='normalized')
+    rn_sample_df['year'], year_scaler = get_year(rn_sample_df.pickup_datetime, transformer = year_scaler, train=(filename=='train'))
+    rn_sample_df[['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']], weekday_scaler = get_weekday(rn_sample_df.pickup_datetime, mode='onehot', transformer = weekday_scaler,train=(filename=='train'))
+    rn_sample_df['hour'], time_scaler = get_time(rn_sample_df.pickup_datetime, transformer = time_scaler, train=(filename=='train'))
     rn_sample_df['is_holiday'] = get_is_holiday(rn_sample_df.pickup_datetime)
-    rn_sample_df[['temperature','weathercode']] = get_weather(rn_sample_df.pickup_datetime, mode='normalized')
+    rn_sample_df[['temperature','weathercode']], weather_scaler = get_weather(rn_sample_df.pickup_datetime, transformer = weather_scaler, train=(filename=='train'))
     rn_sample_df['distance'] = distance(rn_sample_df.pickup_latitude, rn_sample_df.pickup_longitude, 
                                     rn_sample_df.dropoff_latitude, rn_sample_df.dropoff_longitude)
+    
+    if scaling_transformers:
+        scaling_transformers['year'] = year_scaler
+        scaling_transformers['week_day'] = weekday_scaler
+        scaling_transformers['time'] = time_scaler
+        scaling_transformers['weather'] = weather_scaler
     
     # add geographical information
     print('setting geo info...')
@@ -89,19 +104,18 @@ def load_data(filename='train', total_sample=None, random_sample=None):
     '''with location'''
     # rn_sample_df = rn_sample_df.drop(['pickup_datetime'], axis=1)
     
-    return rn_sample_df
+    return rn_sample_df, scaling_transformers
 
 class DataFolder(data.Dataset):
-    def __init__(self, split='train', df=None):
+    def __init__(self, split='train', df=None, transformers=None):
         assert(split == 'train' or split == 'test' or split == 'valid')
         self.split = split
         if split == 'train' or split == 'valid':
             train_df, valid_df = train_test_split(df, test_size=settings.valid_rate, random_state=settings.RANDOM_SEED)
             self.df = valid_df if split == 'valid' else train_df
-            self.features = self.df.drop('fare_amount', axis=1).values
-            self.features = self.df.drop('net_fare', axis=1).values
+            self.features = self.df.drop(['fare_amount','net_fare'], axis=1).values
         else:
-            self.df = load_data(filename='test', random_sample=settings.testN)
+            self.df, self.transformers = load_data(filename='test', random_sample=settings.testN, scaling_transformers=transformers)
             self.key_list = self.df.key.values
             self.features = self.df.drop('key', axis=1).values
 
