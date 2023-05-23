@@ -12,6 +12,15 @@ def distance(lat1, lon1, lat2, lon2):
     a = 0.5 - np.cos((lat2 - lat1) * p)/2 + np.cos(lat1 * p) * np.cos(lat2 * p) * (1 - np.cos((lon2 - lon1) * p)) / 2
     return 0.6213712 * 12742 * np.arcsin(np.sqrt(a)) # 2*R*asin...
 
+#Function aiming at calculating the direction
+def direction(lat1, lng1, lat2, lng2):
+    AVG_EARTH_RADIUS = 6371 #km
+    lng_delta_rad = np.radians(lng2 - lng1)
+    lat1, lng1, lat2, lng2 = map(np.radians, (lat1, lng1, lat2, lng2))
+    y = np.sin(lng_delta_rad) * np.cos(lat2)
+    x = np.cos(lat1) * np.sin(lat2) - np.sin(lat1) * np.cos(lat2) * np.cos(lng_delta_rad)
+    return np.degrees(np.arctan2(y, x))
+
 # add geographical information
 def add_location_info(df:pd.DataFrame()):
     THRESHOLD = 4
@@ -35,6 +44,7 @@ def add_location_info(df:pd.DataFrame()):
     df['to_Manhattan']    = distance(df.dropoff_latitude, df.dropoff_longitude, \
                                         *MANHATTAN) <= THRESHOLD
     df['distance'] = distance(df.pickup_latitude, df.pickup_longitude, df.dropoff_latitude, df.dropoff_longitude)
+    df['direction'] = direction(df.pickup_latitude, df.pickup_longitude, df.dropoff_latitude, df.dropoff_longitude)
     return df
 
 geolocator = Nominatim(user_agent="geoapiExercises")
@@ -77,7 +87,7 @@ def check_location_in_areas(lat, long):
         return False
         
         
-def calculate_total_fixed_fee(df, accelerate = True, train = False):
+def calculate_total_fixed_fee(df, train = False):
     # Assume df has 'pickup_datetime' as a pandas datetime column
     df['pickup_hour'] = df['pickup_datetime'].dt.hour
 
@@ -95,11 +105,8 @@ def calculate_total_fixed_fee(df, accelerate = True, train = False):
     df['pickup_year'] = df['pickup_datetime'].dt.year
     df['improvement_surcharge'] = (df['pickup_year'] >= 2015) * 0.30
 
-    # Estimate MTA state surcharge based on dropoff location
-    if accelerate:
-        df['mta_state_surcharge'] = 0.5
-    else:
-        df['mta_state_surcharge'] = df.apply(lambda row: 0.50 if check_location_in_areas(row['dropoff_latitude'], row['dropoff_longitude']) else 0, axis=1)
+
+    df['mta_state_surcharge'] = df.apply(lambda row: 0.50 if check_location_in_areas(row['dropoff_latitude'], row['dropoff_longitude']) else 0, axis=1)
 
     # Calculate all the fixed fees
     df['total_fixed_fees'] = base_charge + df['mta_state_surcharge'] + df['night_surcharge'] + df['peak_hour_surcharge'] + df['newark_surcharge'] + df['improvement_surcharge']
@@ -119,23 +126,13 @@ def calculate_total_fixed_fee(df, accelerate = True, train = False):
     return df
 
 # call this only for training
-def calculate_net_fare(df:pd.DataFrame(), accelerate = True):
+def calculate_net_fare(df:pd.DataFrame()):
 
     # Calculate all the fixed fees
-    df = calculate_total_fixed_fee(df, accelerate, train=True)
+    df = calculate_total_fixed_fee(df, train=True)
 
     # Subtract the fixed fees from the original fare to get the net fare
     df['net_fare'] = df['fare_amount'] - df['total_fixed_fees']
-
-    if accelerate:
-        # If the net fare is negative, check if the trip ends in a specified area
-        df.loc[df['net_fare'] < 0, 'in_areas'] = df[df['net_fare'] < 0].apply(lambda row: check_location_in_areas(row['dropoff_latitude'], row['dropoff_longitude']), axis=1)
-        # Assume fixed base charge
-        base_charge = 2.50
-        # If the trip does not end in the specified area, refund the MTA state surcharge and recalculate the net fare
-        df.loc[df['in_areas'] == False, 'mta_state_surcharge'] = 0
-        df['total_fixed_fees'] = base_charge + df['mta_state_surcharge'] + df['night_surcharge'] + df['peak_hour_surcharge'] + df['newark_surcharge'] + df['improvement_surcharge']
-        df['net_fare'] = df['fare_amount'] - df['total_fixed_fees']
 
     # drop unnecessary column
     df = df.drop([
@@ -146,9 +143,6 @@ def calculate_net_fare(df:pd.DataFrame(), accelerate = True):
         'newark_surcharge',
         'pickup_year',
         'improvement_surcharge',
-        ], axis=1)
-    df = df.drop([
-        'in_areas'
         ], axis=1)
 
     return df

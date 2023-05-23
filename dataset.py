@@ -32,6 +32,10 @@ def load_data(filename='train', total_sample=None, random_sample=None, scaling_t
         rn_sample_df = df
     rn_sample_df['pickup_datetime'] = pd.to_datetime(rn_sample_df['pickup_datetime'], format= "%Y-%m-%d %H:%M:%S UTC")
 
+    # remove illegal data    
+    if filename == 'train':
+        rn_sample_df = rn_sample_df.dropna()
+
 
     year_scaler = None
     weekday_scaler = None
@@ -62,26 +66,28 @@ def load_data(filename='train', total_sample=None, random_sample=None, scaling_t
     
     # add geographical information
     print('setting geo info...')
-    THRESHOLD = 4
-    JFK_COORD = (40.641766, -73.780968)
-    LGA_COORD = (40.776927, -73.873966)
-    EWR_COORD = (40.689531, -74.174462)
-    MANHATTAN = (40.776676, -73.971321)
+    # THRESHOLD = 4
+    # JFK_COORD = (40.641766, -73.780968)
+    # LGA_COORD = (40.776927, -73.873966)
+    # EWR_COORD = (40.689531, -74.174462)
+    # MANHATTAN = (40.776676, -73.971321)
     
-    rn_sample_df['from_JKF']        = distance(rn_sample_df.pickup_latitude, rn_sample_df.pickup_longitude, \
-                                        *JFK_COORD) <= THRESHOLD
-    rn_sample_df['to_JKF']          = distance(rn_sample_df.dropoff_latitude, rn_sample_df.dropoff_longitude, \
-                                        *JFK_COORD) <= THRESHOLD        
-    rn_sample_df['from_LGA']        = distance(rn_sample_df.pickup_latitude, rn_sample_df.pickup_longitude, \
-                                        *LGA_COORD) <= THRESHOLD
-    rn_sample_df['to_LGA']          = distance(rn_sample_df.dropoff_latitude, rn_sample_df.dropoff_longitude, \
-                                        *LGA_COORD) <= THRESHOLD  
-    rn_sample_df['to_EWR']          = distance(rn_sample_df.dropoff_latitude, rn_sample_df.dropoff_longitude, \
-                                        *EWR_COORD) <= THRESHOLD  
-    rn_sample_df['from_Manhattan']  = distance(rn_sample_df.pickup_latitude, rn_sample_df.pickup_longitude, \
-                                        *MANHATTAN) <= THRESHOLD
-    rn_sample_df['to_Manhattan']    = distance(rn_sample_df.dropoff_latitude, rn_sample_df.dropoff_longitude, \
-                                        *MANHATTAN) <= THRESHOLD
+    # rn_sample_df['from_JKF']        = distance(rn_sample_df.pickup_latitude, rn_sample_df.pickup_longitude, \
+    #                                     *JFK_COORD) <= THRESHOLD
+    # rn_sample_df['to_JKF']          = distance(rn_sample_df.dropoff_latitude, rn_sample_df.dropoff_longitude, \
+    #                                     *JFK_COORD) <= THRESHOLD        
+    # rn_sample_df['from_LGA']        = distance(rn_sample_df.pickup_latitude, rn_sample_df.pickup_longitude, \
+    #                                     *LGA_COORD) <= THRESHOLD
+    # rn_sample_df['to_LGA']          = distance(rn_sample_df.dropoff_latitude, rn_sample_df.dropoff_longitude, \
+    #                                     *LGA_COORD) <= THRESHOLD  
+    # rn_sample_df['to_EWR']          = distance(rn_sample_df.dropoff_latitude, rn_sample_df.dropoff_longitude, \
+    #                                     *EWR_COORD) <= THRESHOLD  
+    # rn_sample_df['from_Manhattan']  = distance(rn_sample_df.pickup_latitude, rn_sample_df.pickup_longitude, \
+    #                                     *MANHATTAN) <= THRESHOLD
+    # rn_sample_df['to_Manhattan']    = distance(rn_sample_df.dropoff_latitude, rn_sample_df.dropoff_longitude, \
+    #                                     *MANHATTAN) <= THRESHOLD
+
+    rn_sample_df = add_location_info(rn_sample_df)
     
     if filename == 'train':
         print('counting net fare...')
