@@ -51,6 +51,7 @@ def load_data(filename='train', total_sample=None, random_sample=None, scaling_t
     # add time information
     print('setting time info...')
     rn_sample_df['year'], year_scaler = get_year(rn_sample_df.pickup_datetime, transformer = year_scaler, train=(filename=='train'))
+    rn_sample_df['weekday'], weekday_scaler = get_weekday(rn_sample_df.pickup_datetime, transformer = weekday_scaler,train=(filename=='train'))
     rn_sample_df[['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']], weekday_scaler = get_weekday(rn_sample_df.pickup_datetime, mode='onehot', transformer = weekday_scaler,train=(filename=='train'))
     rn_sample_df['hour'], time_scaler = get_time(rn_sample_df.pickup_datetime, transformer = time_scaler, train=(filename=='train'))
     rn_sample_df['is_holiday'] = get_is_holiday(rn_sample_df.pickup_datetime)

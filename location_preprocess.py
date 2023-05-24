@@ -175,8 +175,8 @@ def add_distances_features(df):
     lon1 = df['pickup_longitude']
     lon2 = df['dropoff_longitude']
     
-    df['euclidean'] = (df['latdiff'] ** 2 + df['londiff'] ** 2) ** 0.5
-    df['manhattan'] = manhattan(lat1, lon1, lat2, lon2)
+    df['euclidean'] = np.log((df['latdiff'] ** 2 + df['londiff'] ** 2) ** 0.5)
+    df['manhattan'] =np.log(manhattan(lat1, lon1, lat2, lon2))
     
     df['downtown_pickup_distance'] = manhattan(ny[1], ny[0], lat1, lon1)
     df['downtown_dropoff_distance'] = manhattan(ny[1], ny[0], lat2, lon2)
