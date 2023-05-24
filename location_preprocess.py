@@ -146,3 +146,45 @@ def calculate_net_fare(df:pd.DataFrame()):
         ], axis=1)
 
     return df
+
+def manhattan(pickup_lat, pickup_long, dropoff_lat, dropoff_long):
+    return np.abs(dropoff_lat - pickup_lat) + np.abs(dropoff_long - pickup_long)
+
+def add_coordinate_features(df):
+    lat1 = df['pickup_latitude']
+    lat2 = df['dropoff_latitude']
+    lon1 = df['pickup_longitude']
+    lon2 = df['dropoff_longitude']
+    
+    # Add new features
+    df['latdiff'] = (lat1 - lat2)
+    df['londiff'] = (lon1 - lon2)
+
+    return df
+
+
+def add_distances_features(df):
+    # Add distances from airpot and downtown
+    ny = (-74.0063889, 40.7141667)
+    jfk = (-73.7822222222, 40.6441666667)
+    ewr = (-74.175, 40.69)
+    lgr = (-73.87, 40.77)
+    
+    lat1 = df['pickup_latitude']
+    lat2 = df['dropoff_latitude']
+    lon1 = df['pickup_longitude']
+    lon2 = df['dropoff_longitude']
+    
+    df['euclidean'] = (df['latdiff'] ** 2 + df['londiff'] ** 2) ** 0.5
+    df['manhattan'] = manhattan(lat1, lon1, lat2, lon2)
+    
+    df['downtown_pickup_distance'] = manhattan(ny[1], ny[0], lat1, lon1)
+    df['downtown_dropoff_distance'] = manhattan(ny[1], ny[0], lat2, lon2)
+    df['jfk_pickup_distance'] = manhattan(jfk[1], jfk[0], lat1, lon1)
+    df['jfk_dropoff_distance'] = manhattan(jfk[1], jfk[0], lat2, lon2)
+    df['ewr_pickup_distance'] = manhattan(ewr[1], ewr[0], lat1, lon1)
+    df['ewr_dropoff_distance'] = manhattan(ewr[1], ewr[0], lat2, lon2)
+    df['lgr_pickup_distance'] = manhattan(lgr[1], lgr[0], lat1, lon1)
+    df['lgr_dropoff_distance'] = manhattan(lgr[1], lgr[0], lat2, lon2)
+    
+    return df

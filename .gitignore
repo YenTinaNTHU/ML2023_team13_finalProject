@@ -3,3 +3,4 @@ data/
 dataset.ipynb
 predictions.csv
 prediction/*.csv
+__pycache__/

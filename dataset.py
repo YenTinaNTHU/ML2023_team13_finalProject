@@ -55,8 +55,10 @@ def load_data(filename='train', total_sample=None, random_sample=None, scaling_t
     rn_sample_df['hour'], time_scaler = get_time(rn_sample_df.pickup_datetime, transformer = time_scaler, train=(filename=='train'))
     rn_sample_df['is_holiday'] = get_is_holiday(rn_sample_df.pickup_datetime)
     rn_sample_df[['temperature','weathercode']], weather_scaler = get_weather(rn_sample_df.pickup_datetime, transformer = weather_scaler, train=(filename=='train'))
-    rn_sample_df['distance'] = distance(rn_sample_df.pickup_latitude, rn_sample_df.pickup_longitude, 
-                                    rn_sample_df.dropoff_latitude, rn_sample_df.dropoff_longitude)
+    rn_sample_df['distance'] = np.log(distance(rn_sample_df.pickup_latitude, rn_sample_df.pickup_longitude, 
+                                    rn_sample_df.dropoff_latitude, rn_sample_df.dropoff_longitude))
+    rn_sample_df['night'] = rn_sample_df.apply (lambda x: night(x), axis=1)
+    rn_sample_df['late_night'] = rn_sample_df.apply (lambda x: late_night(x), axis=1)
     
     if scaling_transformers:
         scaling_transformers['year'] = year_scaler
@@ -88,6 +90,8 @@ def load_data(filename='train', total_sample=None, random_sample=None, scaling_t
     #                                     *MANHATTAN) <= THRESHOLD
 
     rn_sample_df = add_location_info(rn_sample_df)
+    rn_sample_df = add_coordinate_features(rn_sample_df)
+    rn_sample_df = add_distances_features(rn_sample_df)
     
     if filename == 'train':
         print('counting net fare...')
@@ -104,6 +108,18 @@ def load_data(filename='train', total_sample=None, random_sample=None, scaling_t
         rn_sample_df = rn_sample_df[rn_sample_df.distance > 0]
         rn_sample_df = rn_sample_df[(0 <rn_sample_df.passenger_count) & (rn_sample_df.passenger_count < 7)]
         rn_sample_df = rn_sample_df.drop(['key'], axis=1)
+        # Delimiter lats and lons to NY only
+        rn_sample_df = rn_sample_df[(-76 <= rn_sample_df['pickup_longitude']) & (rn_sample_df['pickup_longitude'] <= -72)]
+        rn_sample_df = rn_sample_df[(-76 <= rn_sample_df['dropoff_longitude']) & (rn_sample_df['dropoff_longitude'] <= -72)]
+        rn_sample_df = rn_sample_df[(38 <= rn_sample_df['pickup_latitude']) & (rn_sample_df['pickup_latitude'] <= 42)]
+        rn_sample_df = rn_sample_df[(38 <= rn_sample_df['dropoff_latitude']) & (rn_sample_df['dropoff_latitude'] <= 42)]
+        # Remove possible outliers
+        rn_sample_df = rn_sample_df[(0 < rn_sample_df['fare_amount']) & (rn_sample_df['fare_amount'] <= 250)]
+        # Remove inconsistent values
+        rn_sample_df = rn_sample_df[(rn_sample_df['dropoff_longitude'] != rn_sample_df['pickup_longitude'])]
+        rn_sample_df = rn_sample_df[(rn_sample_df['dropoff_latitude'] != rn_sample_df['pickup_latitude'])]
+        rn_sample_df = rn_sample_df[(0 < rn_sample_df['distance']) & (rn_sample_df['distance'] <= 100)]
+
     '''without location'''
     rn_sample_df = rn_sample_df.drop(['pickup_datetime', 'pickup_longitude', 'pickup_latitude', 'dropoff_longitude', 'dropoff_latitude'], axis=1)  
     

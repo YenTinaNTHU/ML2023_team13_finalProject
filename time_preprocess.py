@@ -90,3 +90,15 @@ def get_weather(date_time:pd.Series, mode='normal', transformer=None, train=True
         return weather_df.values, transformer
     else:
         print("Failed to get weather information.")
+
+def late_night (row):
+    if (row['hour'] <= 6) or (row['hour'] >= 20):
+        return 1
+    else:
+        return 0
+
+def night (row):
+    if ((row['hour'] <= 20) and (row['hour'] >= 16)) and (row['weekday'] < 5):
+        return 1
+    else:
+        return 0
