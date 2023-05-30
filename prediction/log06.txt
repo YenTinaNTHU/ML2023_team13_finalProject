@@ -1,0 +1,2 @@
+same as log05
+but remove year std and weekday

@@ -7,6 +7,7 @@ from location_preprocess import *
 from torch.utils import data
 from sklearn.model_selection import train_test_split
 from config import settings
+import time
 
 
 DATA_PATH = './data'
@@ -32,10 +33,6 @@ def load_data(filename='train', total_sample=None, random_sample=None, scaling_t
         rn_sample_df = df
     rn_sample_df['pickup_datetime'] = pd.to_datetime(rn_sample_df['pickup_datetime'], format= "%Y-%m-%d %H:%M:%S UTC")
 
-    # remove illegal data    
-    if filename == 'train':
-        rn_sample_df = rn_sample_df.dropna()
-
 
     year_scaler = None
     weekday_scaler = None
@@ -50,16 +47,23 @@ def load_data(filename='train', total_sample=None, random_sample=None, scaling_t
     # 2009-06-15 17:26:21 UTC
     # add time information
     print('setting time info...')
+    start_time = time.time()
     rn_sample_df['year'], year_scaler = get_year(rn_sample_df.pickup_datetime, transformer = year_scaler, train=(filename=='train'))
-    rn_sample_df['weekday'], weekday_scaler = get_weekday(rn_sample_df.pickup_datetime, transformer = weekday_scaler,train=(filename=='train'))
-    rn_sample_df[['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']], weekday_scaler = get_weekday(rn_sample_df.pickup_datetime, mode='onehot', transformer = weekday_scaler,train=(filename=='train'))
+    # rn_sample_df[['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']], weekday_scaler = get_weekday(rn_sample_df.pickup_datetime, mode='onehot', transformer = weekday_scaler,train=(filename=='train'))
+    # rn_sample_df['weekday'], weekday_scaler = get_weekday(rn_sample_df.pickup_datetime, transformer = weekday_scaler,train=(filename=='train'))
     rn_sample_df['hour'], time_scaler = get_time(rn_sample_df.pickup_datetime, transformer = time_scaler, train=(filename=='train'))
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f'basic time information costing time: {elapsed_time:.3f}')
+    
+    start_time = time.time()
     rn_sample_df['is_holiday'] = get_is_holiday(rn_sample_df.pickup_datetime)
-    rn_sample_df[['temperature','weathercode']], weather_scaler = get_weather(rn_sample_df.pickup_datetime, transformer = weather_scaler, train=(filename=='train'))
-    rn_sample_df['distance'] = np.log(distance(rn_sample_df.pickup_latitude, rn_sample_df.pickup_longitude, 
-                                    rn_sample_df.dropoff_latitude, rn_sample_df.dropoff_longitude))
-    rn_sample_df['night'] = rn_sample_df.apply (lambda x: night(x), axis=1)
-    rn_sample_df['late_night'] = rn_sample_df.apply (lambda x: late_night(x), axis=1)
+    # rn_sample_df[['temperature','weathercode']], weather_scaler = get_weather(rn_sample_df.pickup_datetime, transformer = weather_scaler, train=(filename=='train'))
+    # rn_sample_df['night'] = rn_sample_df.apply (lambda x: night(x), axis=1)
+    # rn_sample_df['late_night'] = rn_sample_df.apply (lambda x: late_night(x), axis=1)
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f'advanced time information costing time: {elapsed_time:.3f}')
     
     if scaling_transformers:
         scaling_transformers['year'] = year_scaler
@@ -69,61 +73,50 @@ def load_data(filename='train', total_sample=None, random_sample=None, scaling_t
     
     # add geographical information
     print('setting geo info...')
-    # THRESHOLD = 4
-    # JFK_COORD = (40.641766, -73.780968)
-    # LGA_COORD = (40.776927, -73.873966)
-    # EWR_COORD = (40.689531, -74.174462)
-    # MANHATTAN = (40.776676, -73.971321)
-    
-    # rn_sample_df['from_JKF']        = distance(rn_sample_df.pickup_latitude, rn_sample_df.pickup_longitude, \
-    #                                     *JFK_COORD) <= THRESHOLD
-    # rn_sample_df['to_JKF']          = distance(rn_sample_df.dropoff_latitude, rn_sample_df.dropoff_longitude, \
-    #                                     *JFK_COORD) <= THRESHOLD        
-    # rn_sample_df['from_LGA']        = distance(rn_sample_df.pickup_latitude, rn_sample_df.pickup_longitude, \
-    #                                     *LGA_COORD) <= THRESHOLD
-    # rn_sample_df['to_LGA']          = distance(rn_sample_df.dropoff_latitude, rn_sample_df.dropoff_longitude, \
-    #                                     *LGA_COORD) <= THRESHOLD  
-    # rn_sample_df['to_EWR']          = distance(rn_sample_df.dropoff_latitude, rn_sample_df.dropoff_longitude, \
-    #                                     *EWR_COORD) <= THRESHOLD  
-    # rn_sample_df['from_Manhattan']  = distance(rn_sample_df.pickup_latitude, rn_sample_df.pickup_longitude, \
-    #                                     *MANHATTAN) <= THRESHOLD
-    # rn_sample_df['to_Manhattan']    = distance(rn_sample_df.dropoff_latitude, rn_sample_df.dropoff_longitude, \
-    #                                     *MANHATTAN) <= THRESHOLD
-
+    start_time = time.time()
     rn_sample_df = add_location_info(rn_sample_df)
-    rn_sample_df = add_coordinate_features(rn_sample_df)
-    rn_sample_df = add_distances_features(rn_sample_df)
+    # rn_sample_df = add_coordinate_features(rn_sample_df)
+    # rn_sample_df = add_distances_features(rn_sample_df)
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f'geo information costing time: {elapsed_time:.3f}') 
     
+    start_time = time.time()
     if filename == 'train':
         print('counting net fare...')
-        rn_sample_df = calculate_net_fare(rn_sample_df)
+        rn_sample_df = calculate_net_fare(rn_sample_df, simple=True)
     else:
         # we cannot count the net fare for test set
         print('counting fixed fee...')
-        rn_sample_df = calculate_total_fixed_fee(rn_sample_df)
-
+        rn_sample_df = calculate_total_fixed_fee(rn_sample_df, simple=True)
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f'counting fixed fee costing time: {elapsed_time:.3f}')
+    
     # remove illegal data    
+    start_time = time.time()
     if filename == 'train':
         rn_sample_df = rn_sample_df.dropna()
         rn_sample_df = rn_sample_df[rn_sample_df.net_fare > 0]
-        rn_sample_df = rn_sample_df[rn_sample_df.distance > 0]
-        rn_sample_df = rn_sample_df[(0 <rn_sample_df.passenger_count) & (rn_sample_df.passenger_count < 7)]
+        rn_sample_df = rn_sample_df[(rn_sample_df.distance > 0) & (rn_sample_df.distance < 100)]
+        rn_sample_df = rn_sample_df[(0 <rn_sample_df.passenger_count) & (rn_sample_df.passenger_count <= 6)]
         rn_sample_df = rn_sample_df.drop(['key'], axis=1)
-        # Delimiter lats and lons to NY only
-        rn_sample_df = rn_sample_df[(-76 <= rn_sample_df['pickup_longitude']) & (rn_sample_df['pickup_longitude'] <= -72)]
-        rn_sample_df = rn_sample_df[(-76 <= rn_sample_df['dropoff_longitude']) & (rn_sample_df['dropoff_longitude'] <= -72)]
-        rn_sample_df = rn_sample_df[(38 <= rn_sample_df['pickup_latitude']) & (rn_sample_df['pickup_latitude'] <= 42)]
-        rn_sample_df = rn_sample_df[(38 <= rn_sample_df['dropoff_latitude']) & (rn_sample_df['dropoff_latitude'] <= 42)]
-        # Remove possible outliers
-        rn_sample_df = rn_sample_df[(0 < rn_sample_df['fare_amount']) & (rn_sample_df['fare_amount'] <= 250)]
-        # Remove inconsistent values
-        rn_sample_df = rn_sample_df[(rn_sample_df['dropoff_longitude'] != rn_sample_df['pickup_longitude'])]
-        rn_sample_df = rn_sample_df[(rn_sample_df['dropoff_latitude'] != rn_sample_df['pickup_latitude'])]
-        rn_sample_df = rn_sample_df[(0 < rn_sample_df['distance']) & (rn_sample_df['distance'] <= 100)]
-
+        rn_sample_df.drop(rn_sample_df.index[(rn_sample_df.pickup_longitude < -74.5) | 
+           (rn_sample_df.pickup_longitude > -72.5) | 
+           (rn_sample_df.pickup_latitude < 40.5) | 
+           (rn_sample_df.pickup_latitude > 42)],inplace=True)
+        rn_sample_df.drop(rn_sample_df.index[(rn_sample_df.dropoff_longitude < -74.5) | 
+                   (rn_sample_df.dropoff_longitude > -72.5) | 
+                   (rn_sample_df.dropoff_latitude < 40.5) | 
+                   (rn_sample_df.dropoff_latitude > 42)],inplace=True)
+        rn_sample_df.drop(rn_sample_df.index[(rn_sample_df.dropoff_longitude == rn_sample_df.pickup_longitude) & 
+                   (rn_sample_df.dropoff_latitude == rn_sample_df.dropoff_latitude)],inplace=True)        
+        rn_sample_df = rn_sample_df[rn_sample_df.net_fare < 150]
     '''without location'''
     rn_sample_df = rn_sample_df.drop(['pickup_datetime', 'pickup_longitude', 'pickup_latitude', 'dropoff_longitude', 'dropoff_latitude'], axis=1)  
-    
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print(f'data flitering time: {elapsed_time:.3f}')    
     '''with location'''
     # rn_sample_df = rn_sample_df.drop(['pickup_datetime'], axis=1)
     
@@ -157,4 +150,3 @@ class DataFolder(data.Dataset):
         else:
             # return len(self.df.fare_amount)
             return len(self.df.net_fare)
-

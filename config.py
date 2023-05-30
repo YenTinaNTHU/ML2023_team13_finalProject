@@ -3,5 +3,5 @@ class setting():
         self.RANDOM_SEED = 1311
         self.totalN = None    # train + vaild number
         self.testN = None
-        self.valid_rate = 0.001
+        self.valid_rate = 0.0001# 0.05
 settings = setting()

@@ -5,23 +5,39 @@ import torch.nn.functional as F
 import torch.nn.init as init
 
 class FCNN(nn.Module):
-    def __init__(self, input_dim, dim=32):
+    def __init__(self, input_dim, dim=64):
         super(FCNN, self).__init__()
         self.linear_relu_stack = nn.Sequential(
             nn.Linear(input_dim, dim),
             nn.ReLU(),
             nn.Linear(dim, dim),   
-            nn.BatchNorm1d(dim),
-            nn.ReLU(),
-            nn.Linear(dim, dim),   
-            nn.BatchNorm1d(dim),
-            nn.ReLU(),       
+            nn.ReLU(),    
             nn.Linear(dim, 1),   
         )
 
     def forward(self, x):
         logits = self.linear_relu_stack(x)
         return logits
+    
+# class FCNN32withBN(nn.Module):
+#     def __init__(self, input_dim, dim=32):
+#         super(FCNN, self).__init__()
+#         self.linear_relu_stack = nn.Sequential(
+#             nn.Linear(input_dim, dim),
+#             nn.ReLU(),
+#             nn.Linear(dim, dim),   
+#             nn.BatchNorm1d(dim),
+#             nn.ReLU(),
+#             nn.Linear(dim, dim),   
+#             nn.BatchNorm1d(dim),
+#             nn.ReLU(),       
+#             nn.Linear(dim, 1),   
+#         )
+
+#     def forward(self, x):
+#         logits = self.linear_relu_stack(x)
+#         return logits
+    
     
 # class FCNN512t512t512(nn.Module):
 #     def __init__(self, input_dim):

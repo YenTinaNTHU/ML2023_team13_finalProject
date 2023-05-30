@@ -87,12 +87,17 @@ def check_location_in_areas(lat, long):
         return False
         
         
-def calculate_total_fixed_fee(df, train = False):
+def calculate_total_fixed_fee(df, train = False, simple=True):
+    # Assume fixed base charge
+    base_charge = 0   
+    
+    if simple:
+        df['total_fixed_fees'] = base_charge
+        return df
+        
     # Assume df has 'pickup_datetime' as a pandas datetime column
     df['pickup_hour'] = df['pickup_datetime'].dt.hour
 
-    # Assume fixed base charge
-    base_charge = 2.50
 
     # Calculate night and peak-hour surcharges
     df['night_surcharge'] = ((df['pickup_hour'] >= 20) | (df['pickup_hour'] < 6)) * 0.50
@@ -126,24 +131,25 @@ def calculate_total_fixed_fee(df, train = False):
     return df
 
 # call this only for training
-def calculate_net_fare(df:pd.DataFrame()):
+def calculate_net_fare(df:pd.DataFrame(), simple=True):
 
     # Calculate all the fixed fees
-    df = calculate_total_fixed_fee(df, train=True)
+    df = calculate_total_fixed_fee(df, train=True, simple=simple)
 
     # Subtract the fixed fees from the original fare to get the net fare
     df['net_fare'] = df['fare_amount'] - df['total_fixed_fees']
 
     # drop unnecessary column
-    df = df.drop([
-        'pickup_hour',
-        'mta_state_surcharge',
-        'night_surcharge',
-        'peak_hour_surcharge',
-        'newark_surcharge',
-        'pickup_year',
-        'improvement_surcharge',
-        ], axis=1)
+    if not simple:
+        df = df.drop([
+            'pickup_hour',
+            'mta_state_surcharge',
+            'night_surcharge',
+            'peak_hour_surcharge',
+            'newark_surcharge',
+            'pickup_year',
+            'improvement_surcharge',
+            ], axis=1)
 
     return df
 
@@ -175,8 +181,8 @@ def add_distances_features(df):
     lon1 = df['pickup_longitude']
     lon2 = df['dropoff_longitude']
     
-    df['euclidean'] = np.log((df['latdiff'] ** 2 + df['londiff'] ** 2) ** 0.5)
-    df['manhattan'] =np.log(manhattan(lat1, lon1, lat2, lon2))
+    df['euclidean'] = (df['latdiff'] ** 2 + df['londiff'] ** 2) ** 0.5
+    df['manhattan'] = manhattan(lat1, lon1, lat2, lon2)
     
     df['downtown_pickup_distance'] = manhattan(ny[1], ny[0], lat1, lon1)
     df['downtown_dropoff_distance'] = manhattan(ny[1], ny[0], lat2, lon2)

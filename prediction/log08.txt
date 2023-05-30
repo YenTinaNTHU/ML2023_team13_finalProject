@@ -1,0 +1,40 @@
+model = XGBRegressor(max_depth=6,
+                       n_estimators=2000,  #2500
+                       learning_rate=0.008,
+                       subsample=0.84,
+                       booster= 'gbtree',
+                       tree_method= 'gpu_hist',
+                       gpu_id=0,
+                       colsample_bytree= 1,
+                       reg_lambda= 5,
+                       reg_alpha= 32,
+                       n_jobs= 4,  
+                       alpha=0.2,
+                       random_state=42)  
+                       
+import library...
+loadind data...
+loaded csv file shape: (4000000, 8)
+setting time info...
+basic time information costing time: 44.319
+advanced time information costing time: 23.457
+setting geo info...
+geo information costing time: 4.745
+counting net fare...
+counting fixed fee costing time: 0.055
+data flitering time: 8.545
+
+loaded test csv file shape: (9914, 7)
+setting time info...
+basic time information costing time: 0.097
+advanced time information costing time: 0.052
+setting geo info...
+geo information costing time: 0.045
+counting fixed fee...
+counting fixed fee costing time: 0.000
+data flitering time: 0.002
+
+creating XGBRegressor model...
+training model...
+total training time: 1 min 1 sec
+predict result...
